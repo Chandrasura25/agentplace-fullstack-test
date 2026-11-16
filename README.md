@@ -1,14 +1,27 @@
-# Payments test task: order service
+# Orders service + dashboard + agent (Full-Stack test task)
+
+This extends my payments test task into a small full-stack system: an order service (Supabase Edge Function + Postgres, Stripe test mode), a React + TypeScript dashboard in `web/`, and an Agentplace agent that looks up one order by ID.
 
 A small order service for agent-driven payments. Prices come from the catalog, and an order's
 status changes only from a verified provider notification.
 
 ## Run
 
-    npm test          # 11 tests, Node 22.6+, no dependencies
+    npm test          # 12 tests, Node 22.6+, no dependencies
     WEBHOOK_SECRET=whsec_xxx npm start
 
-Endpoints: `GET /catalog`, `POST /orders {productId}`, `GET /orders/:id`, `POST /webhooks/stripe`.
+Endpoints: `GET /catalog` (open), `POST /orders {productId}`, `GET /orders?limit=` (newest first, for the dashboard), `GET /orders/:id`, `POST /webhooks/stripe` (verified by signature). Everything except `/catalog` and the webhook needs the `x-api-key` header.
+
+## Dashboard (`web/`)
+
+React + TypeScript (Vite). Lists orders with status filters, shows each order status history, and creates a test order with a Stripe test checkout link. It refreshes every 5 seconds so webhook updates show up. The API key is typed in by the viewer and kept in `sessionStorage` only, so the deployed bundle holds no secret.
+
+    cd web && cp .env.example .env   # set VITE_ORDERS_BASE
+    npm install && npm run dev
+
+## The agent
+
+Built on Agentplace with the free Luna model. It reads prices from `GET /catalog` and looks up one order with `GET /orders/:id`. It deliberately has no tool for listing orders: the list endpoint exists for the dashboard (operator, behind the key), and a customer-facing agent should not be able to show other people orders.
 
 ## How it stays correct
 
@@ -43,10 +56,10 @@ Endpoints: `GET /catalog`, `POST /orders {productId}`, `GET /orders/:id`, `POST 
 
 ## Deploy your own copy
 
-1. Create a Supabase project and run `supabase/migrations/agentplace_test_schema.sql` (it creates a separate `agentplace_test` schema).
-2. Set function secrets: `AGENTPLACE_STRIPE_SECRET_KEY`, `AGENTPLACE_STRIPE_WEBHOOK_SECRET`, `AGENTPLACE_ORDERS_API_KEY`.
-3. Deploy: `supabase functions deploy agentplace-orders --no-verify-jwt --use-api --project-ref <ref>`.
-4. In Stripe (test mode) add a webhook endpoint `https://<ref>.supabase.co/functions/v1/agentplace-orders/webhooks/stripe` for `checkout.session.completed`, `payment_intent.payment_failed` and `charge.refunded`, and put its signing secret in the webhook secret above.
-5. Copy `.env.example` to `.env`, change `BASE` in `scripts/live-test.mjs` to your function URL, and run `node scripts/live-test.mjs`.
+1. Create a Supabase project and run `supabase/migrations/agentplace_fullstack_schema.sql` (it creates a separate `agentplace_fullstack` schema).
+2. Set function secrets: `AGENTPLACE_FS_STRIPE_SECRET_KEY`, `AGENTPLACE_FS_STRIPE_WEBHOOK_SECRET`, `AGENTPLACE_FS_ORDERS_API_KEY`.
+3. Deploy: `supabase functions deploy agentplace-orders-fs --no-verify-jwt --use-api --project-ref <ref>`.
+4. In Stripe (test mode) add a webhook endpoint `https://<ref>.supabase.co/functions/v1/agentplace-orders-fs/webhooks/stripe` for `checkout.session.completed`, `payment_intent.payment_failed` and `charge.refunded`, and put its signing secret in the webhook secret above.
+5. Copy `.env.example` to `.env`, and run `ORDERS_BASE=https://<ref>.supabase.co/functions/v1/agentplace-orders-fs node scripts/live-test.mjs`.
 
 The agent calls `POST /orders` and `GET /orders/:id` with the `x-api-key` header. `GET /catalog` is open.
