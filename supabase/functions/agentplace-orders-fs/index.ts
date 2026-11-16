@@ -13,8 +13,8 @@ const CATALOG: Record<string, { name: string; priceCents: number; currency: stri
   premium: { name: "Premium package (3 sessions)", priceCents: 11000, currency: "usd" },
 };
 
-const STRIPE_KEY = Deno.env.get("AGENTPLACE_STRIPE_SECRET_KEY") ?? "";
-const WEBHOOK_SECRET = Deno.env.get("AGENTPLACE_STRIPE_WEBHOOK_SECRET") ?? "";
+const STRIPE_KEY = Deno.env.get("AGENTPLACE_FS_STRIPE_SECRET_KEY") ?? "";
+const WEBHOOK_SECRET = Deno.env.get("AGENTPLACE_FS_STRIPE_WEBHOOK_SECRET") ?? "";
 const sql = postgres(Deno.env.get("SUPABASE_DB_URL")!, { max: 3, prepare: false });
 
 const ALLOWED: Record<string, string[]> = {
@@ -147,7 +147,7 @@ async function applyEvent(event: any): Promise<{ applied: boolean; reason: strin
 }
 
 // Shared key for the agent's calls (x-api-key). The Stripe webhook does not use it; it is authenticated by signature.
-const API_KEY = Deno.env.get("AGENTPLACE_ORDERS_API_KEY") ?? "";
+const API_KEY = Deno.env.get("AGENTPLACE_FS_ORDERS_API_KEY") ?? "";
 function keyOk(req: Request): boolean {
   const given = req.headers.get("x-api-key") ?? "";
   return API_KEY.length >= 24 && safeEqual(given, API_KEY);
